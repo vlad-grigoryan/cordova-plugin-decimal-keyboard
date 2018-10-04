@@ -124,7 +124,7 @@ BOOL isDifferentKeyboardShown=NO;
     double dValue = [value doubleValue];
 
     if(dValue <= 0.0){
-        [self removeDecimalButton];
+        // [self removeDecimalButton];
         return;
     }
 
