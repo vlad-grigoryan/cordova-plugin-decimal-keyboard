@@ -161,6 +161,7 @@ BOOL isDifferentKeyboardShown=NO;
 
 - (void)buttonTapped:(UIButton *)button {
     AudioServicesPlaySystemSound(1104);
+
     if ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPhone && UIScreen.mainScreen.nativeBounds.size.height == 2436)  {
         [decimalButton setBackgroundColor: [UIColor colorWithRed:255/255.0 green:255/255.0 blue:255/255.0 alpha:0.0]];
     } else {
