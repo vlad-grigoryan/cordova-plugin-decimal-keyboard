@@ -1,6 +1,7 @@
 #import <WebKit/WebKit.h>
 
 #import "CDVDecimalKeyboard.h"
+#import <AudioToolbox/AudioToolbox.h>
 
 @implementation CDVDecimalKeyboard
 
@@ -159,13 +160,15 @@ BOOL isDifferentKeyboardShown=NO;
 }
 
 - (void)buttonTapped:(UIButton *)button {
+    AudioServicesPlaySystemSound(1104);
+
     if ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPhone && UIScreen.mainScreen.nativeBounds.size.height == 2436)  {
         [decimalButton setBackgroundColor: [UIColor colorWithRed:255/255.0 green:255/255.0 blue:255/255.0 alpha:0.0]];
     } else {
         // alpha 0.0 for ion 11+, older 1.0
         [decimalButton setBackgroundColor: [UIColor colorWithRed:255/255.0 green:255/255.0 blue:255/255.0 alpha:0.0]];
     }
-    
+
 }
 - (void)buttonPressCancel:(UIButton *)button{
     [decimalButton setBackgroundColor: [UIColor colorWithRed:210/255.0 green:213/255.0 blue:218/255.0 alpha:1.0]];
@@ -214,24 +217,53 @@ BOOL stopSearching=NO;
 
                 if([[nView description] hasPrefix:@"<UIKBKeyView"] == YES){
                     //all keys of same size;
-                    
+
+                    height = nView.frame.size.height;
                     width = nView.frame.size.width-1.5;
-                    
-                    if ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPhone && UIScreen.mainScreen.nativeBounds.size.height == 2436)  {
-                        //iPhone X
-                        // height = height-2;
-                        height = nView.frame.size.height-5;
-                        y = y-(height-1)-24;
-                    
-                    } else {
-                        height = nView.frame.size.height;
-                        y = y-(height-1);
+
+                    if([[UIDevice currentDevice]userInterfaceIdiom] == UIUserInterfaceIdiomPhone) {
+                        switch ((int)[[UIScreen mainScreen] nativeBounds].size.height) {
+                            case 1136:
+                                //iPhone 5 or 5S or 5C
+                                y = y - (height - 1);
+                                break;
+                            case 1334:
+                                //iPhone 6/6S/7/8
+                                y = y - (height - 1);
+                                break;
+                            case 1920:
+                                //iPhone 6+/6S+/7+/8+
+                                y = y - (height - 1);
+                                break;
+                            case 2208:
+                                //iPhone 6+/6S+/7+/8+
+                                y = y - (height - 1);
+                                break;
+                            case 2436:
+                                //iPhone X, Xs
+                                y = y - (height + 12);
+                                height -= 8;
+                                break;
+                            case 2688:
+                                //iPhone Xs Max
+                                y = y - (height + 12);
+                                height -= 8;
+                                break;
+                            case 1792:
+                                //iPhone Xr
+                                y = y - (height + 12);
+                                height -= 8;
+                                break;
+                            default:
+                                //unknown
+                                y = y-(height-1);
+                                break;
+                        }
                     }
+
                     cgButton = CGRectMake(x, y, width, height);
                     break;
-
                 }
-
             }
         }
 
