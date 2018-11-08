@@ -1,6 +1,7 @@
 #import <WebKit/WebKit.h>
 
 #import "CDVDecimalKeyboard.h"
+#import <AudioToolbox/AudioToolbox.h>
 
 @implementation CDVDecimalKeyboard
 
@@ -26,8 +27,8 @@ BOOL isAppInBackground=NO;
                                              selector:@selector(appDidBecomeActive:)
                                                  name:UIApplicationDidBecomeActiveNotification
                                                object:nil];
-    
-    
+
+
 }
 - (void) appWillResignActive: (NSNotification*) n{
     isAppInBackground = YES;
@@ -38,7 +39,7 @@ BOOL isAppInBackground=NO;
     if(isAppInBackground==YES){
         isAppInBackground = NO;
         [self processKeyboardShownEvent];
-        
+
     }
 }
 
@@ -71,22 +72,22 @@ BOOL isAppInBackground=NO;
             forControlEvents:UIControlEventTouchDown];
     [decimalButton addTarget:self action:@selector(buttonPressCancel:)
             forControlEvents:UIControlEventTouchUpOutside];
-    
-    
+
+
     decimalButton.contentVerticalAlignment = UIControlContentVerticalAlignmentCenter;
-    [decimalButton setTitleEdgeInsets:UIEdgeInsetsMake(-20.0f, 0.0f, 0.0f, 0.0f)];
+    [decimalButton setTitleEdgeInsets:UIEdgeInsetsMake(0.0f, 0.0f, 0.0f, 0.0f)];
     [decimalButton setBackgroundColor: [UIColor colorWithRed:210/255.0 green:213/255.0 blue:218/255.0 alpha:1.0]];
-    
+
     // locate keyboard view
     UIWindow* tempWindow = nil;
     NSArray* openWindows = [[UIApplication sharedApplication] windows];
-    
+
     for(UIWindow* object in openWindows){
         if([[object description] hasPrefix:@"<UIRemoteKeyboardWindow"] == YES){
             tempWindow = object;
         }
     }
-    
+
     if(tempWindow ==nil){
         //for ios 8
         for(UIWindow* object in openWindows){
@@ -96,7 +97,7 @@ BOOL isAppInBackground=NO;
         }
     }
 
-    
+
     UIView* keyboard;
     for(int i=0; i<[tempWindow.subviews count]; i++) {
         keyboard = [tempWindow.subviews objectAtIndex:i];
@@ -109,7 +110,7 @@ BOOL isAppInBackground=NO;
     [decimalButton removeFromSuperview];
     decimalButton=nil;
     stopSearching=NO;
-    
+
 }
 - (void) deleteDecimalButton{
     [decimalButton removeFromSuperview];
@@ -122,21 +123,21 @@ BOOL isDifferentKeyboardShown=NO;
     NSDictionary* info = [n userInfo];
     NSNumber* value = [info objectForKey:UIKeyboardAnimationDurationUserInfoKey];
     double dValue = [value doubleValue];
-    
+
     if(dValue <= 0.0){
-        [self removeDecimalButton];
+        // [self removeDecimalButton];
         return;
     }
-    
+
     dispatch_time_t delay = dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC * dValue);
     dispatch_after(delay, dispatch_get_main_queue(), ^(void){
         [self processKeyboardShownEvent];
     });
-    
-    
+
+
 }
 - (void) processKeyboardShownEvent{
-    [self isTextAndDecimal:^(BOOL isDecimalKeyRequired) {
+    [self isTextOrNumberAndDecimal:^(BOOL isDecimalKeyRequired) {
         // create custom button
         if(decimalButton == nil){
             if(isDecimalKeyRequired){
@@ -159,23 +160,31 @@ BOOL isDifferentKeyboardShown=NO;
 }
 
 - (void)buttonTapped:(UIButton *)button {
-    [decimalButton setBackgroundColor: [UIColor colorWithRed:255/255.0 green:255/255.0 blue:255/255.0 alpha:1.0]];
+    AudioServicesPlaySystemSound(1104);
+    if ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPhone && UIScreen.mainScreen.nativeBounds.size.height == 2436)  {
+        [decimalButton setBackgroundColor: [UIColor colorWithRed:255/255.0 green:255/255.0 blue:255/255.0 alpha:0.0]];
+    } else {
+        // alpha 0.0 for ion 11+, older 1.0
+        [decimalButton setBackgroundColor: [UIColor colorWithRed:255/255.0 green:255/255.0 blue:255/255.0 alpha:0.0]];
+    }
+
 }
 - (void)buttonPressCancel:(UIButton *)button{
     [decimalButton setBackgroundColor: [UIColor colorWithRed:210/255.0 green:213/255.0 blue:218/255.0 alpha:1.0]];
 }
 
-- (void) isTextAndDecimal:(void (^)(BOOL isTextAndDecimal))completionHandler {
+- (void) isTextOrNumberAndDecimal:(void (^)(BOOL isTextOrNumberAndDecimal))completionHandler {
     [self evaluateJavaScript:@"DecimalKeyboard.getActiveElementType();"
            completionHandler:^(NSString * _Nullable response, NSError * _Nullable error) {
                BOOL isText = [response isEqual:@"text"];
-               
-               if (isText) {
+               BOOL isNumber = [response isEqual:@"number"];
+
+               if (isText || isNumber) {
                    [self evaluateJavaScript:@"DecimalKeyboard.isDecimal();"
                           completionHandler:^(NSString * _Nullable response, NSError * _Nullable error) {
                               BOOL isDecimal = [response isEqual:@"true"] || [response isEqual:@"1"];
-                              BOOL isTextAndDecimal = isText && isDecimal;
-                              completionHandler(isTextAndDecimal);
+                              BOOL isTextOrNumberAndDecimal = (isText || isNumber) && isDecimal;
+                              completionHandler(isTextOrNumberAndDecimal);
                           }];
                } else {
                    completionHandler(NO);
@@ -185,13 +194,13 @@ BOOL isDifferentKeyboardShown=NO;
 
 BOOL stopSearching=NO;
 - (void)listSubviewsOfView:(UIView *)view {
-    
+
     // Get the subviews of the view
     NSArray *subviews = [view subviews];
-    
+
     // Return if there are no subviews
     if ([subviews count] == 0) return; // COUNT CHECK LINE
-    
+
     for (UIView *subview in subviews) {
         if(stopSearching==YES){
             break;
@@ -204,20 +213,59 @@ BOOL stopSearching=NO;
             CGFloat x = 0;
             CGFloat y =ui.frame.size.height;
             for(UIView *nView in ui.subviews){
-                
+
                 if([[nView description] hasPrefix:@"<UIKBKeyView"] == YES){
                     //all keys of same size;
+
                     height = nView.frame.size.height;
                     width = nView.frame.size.width-1.5;
-                    y = y-(height-1);
+
+                    if([[UIDevice currentDevice]userInterfaceIdiom] == UIUserInterfaceIdiomPhone) {
+                        switch ((int)[[UIScreen mainScreen] nativeBounds].size.height) {
+                            case 1136:
+                                //iPhone 5 or 5S or 5C
+                                y = y - (height - 1);
+                                break;
+                            case 1334:
+                                //iPhone 6/6S/7/8
+                                y = y - (height - 1);
+                                break;
+                            case 1920:
+                                //iPhone 6+/6S+/7+/8+
+                                y = y - (height - 1);
+                                break;
+                            case 2208:
+                                //iPhone 6+/6S+/7+/8+
+                                y = y - (height - 1);
+                                break;
+                            case 2436:
+                                //iPhone X, Xs
+                                y = y - (height + 12);
+                                height -= 8;
+                                break;
+                            case 2688:
+                                //iPhone Xs Max
+                                y = y - (height + 12);
+                                height -= 8;
+                                break;
+                            case 1792:
+                                //iPhone Xr
+                                y = y - (height + 12);
+                                height -= 8;
+                                break;
+                            default:
+                                //unknown
+                                y = y-(height-1);
+                                break;
+                        }
+                    }
+
                     cgButton = CGRectMake(x, y, width, height);
                     break;
-                    
                 }
-                
             }
         }
-        
+
         [self listSubviewsOfView:subview];
     }
 }
@@ -230,7 +278,7 @@ BOOL stopSearching=NO;
         NSString *response = [webview stringByEvaluatingJavaScriptFromString:script];
         if (completionHandler) completionHandler(response, nil);
     }
-    
+
     else if ([self.webView isKindOfClass:WKWebView.class]) {
         WKWebView *webview = (WKWebView*)self.webView;
         [webview evaluateJavaScript:script completionHandler:^(id result, NSError *error) {
@@ -240,8 +288,7 @@ BOOL stopSearching=NO;
             }
         }];
     }
-    
+
 }
 
 @end
-
